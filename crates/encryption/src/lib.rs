@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn encryption_decryption() {
-        let symmetric_key = Key::new("password1".to_string(), Some(Salt::new(b"salt1".to_vec())));
+        let symmetric_key = Key::new("password1".to_string(), Salt::new(b"salt1".to_vec()));
         let encryption = Encryption::from(symmetric_key);
         let nonce = Encryption::generate_nonce();
 

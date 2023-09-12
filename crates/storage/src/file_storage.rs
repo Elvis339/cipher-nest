@@ -1,4 +1,7 @@
+#![feature(fs_mode)]
+
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -39,6 +42,11 @@ impl FileStorage {
         if let Some(dir) = self.file_path.parent() {
             if !dir.exists() {
                 fs::create_dir_all(dir).context("Failed to create .cipher-nest directory")?;
+
+                // Set permissions to allow only owner read and write access
+                let permissions = fs::Permissions::from_mode(0o700);
+                fs::set_permissions(dir, permissions)
+                    .context("Failed to set directory permissions")?;
             }
         }
         Ok(())
