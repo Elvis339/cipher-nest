@@ -1,0 +1,15 @@
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "client"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace
+anyhow.workspace = true
+storage = { path = "../storage", version = "0.1.0" }
+encryption = { path = "../encryption", version = "0.1.0" }
+clap = { version = "4.4.2", features = ["derive"] }
