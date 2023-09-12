@@ -1,10 +1,20 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
-use encryption::key::Key;
-use encryption::salt::Salt;
-use encryption::Encryption;
-use storage::file_storage::FileStorage;
-use storage::key_manager::KeyManagerBuilder;
-use storage::keyring_storage::KeyringStorage;
+#[macro_use]
+extern crate log;
+extern crate pretty_env_logger;
+
+use std::sync::Arc;
+
+use clap::{Parser, Subcommand};
+use clap::builder::Str;
+use tokio::sync::RwLock;
+
+use storage::db_storage::Database;
+
+use crate::cmd::get_password_cmd::GetPasswordCmd;
+use crate::cmd::new_key_cmd::NewKeyCmd;
+use crate::cmd::save_password_cmd::SavePasswordCmd;
+
+mod cmd;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -23,89 +33,92 @@ enum Commands {
         salt: Option<String>,
 
         #[arg(
+        short,
+        long,
+        action,
+        required = false,
+        help = "Save to keystore, by default it will save to file"
+        )]
+        keystore: bool,
+    },
+    #[command(
+    about = "Encrypted password unless specified otherwise symmetric key will be derived from the file"
+    )]
+    Save {
+        #[arg(short, long, help = "Unique identifier usually an email")]
+        username: String,
+
+        #[arg(short = 'a', long, help = "Associate website with the password")]
+        http_address: Option<String>,
+
+        #[arg(short, long, help = "Password to save")]
+        password: String,
+
+        #[arg(
             short,
             long,
             action,
             required = false,
-            help = "Save to keystore, by default it will save to file"
+            help = "Get the symmetric key from keystore"
         )]
         keystore: bool,
     },
-    #[command(about = "Encrypted password")]
-    Save {
-        #[arg(short = 'p', long)]
-        password: String,
-    },
     #[command(about = "Decrypted password")]
     Get {
+        #[arg(short, long, help = "By username")]
+        username: String,
+
+        #[arg(short = 'a', long, help = "By http_address", required = false)]
+        http_address: Option<String>,
+
         #[arg(
+            short,
             long,
-            require_equals = true,
-            value_name = "FILTER",
-            num_args = 0..=1,
-            default_value_t = GetByFilter::Username,
-            default_missing_value = "username",
-            value_enum
+            action,
+            required = false,
+            help = "Get the symmetric key from keystore"
         )]
-        filter: GetByFilter,
+        keystore: bool,
     },
 }
 
-#[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
-enum GetByFilter {
-    Username,
-    HttpAddress,
-}
-
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pretty_env_logger::init();
     let args = Cli::parse();
+
+    let db = Arc::new(RwLock::new(
+        Database::new().await.expect("failed to start database"),
+    ));
 
     match args.command {
         Commands::Key {
             master_password,
             salt,
             keystore,
+        } => NewKeyCmd::new(master_password, salt, keystore)
+            .run()
+            .unwrap(),
+        Commands::Save {
+            username,
+            http_address,
+            password,
+            keystore,
         } => {
-            let salt_value = salt
-                .map(|s| Salt::new(s.as_bytes().to_vec()))
-                .unwrap_or(Salt::generate_random());
-
-            let symmetric_key = Key::new(master_password, salt_value.clone());
-            let mut key_manager_builder = KeyManagerBuilder::new();
-
-            if keystore {
-                let _keyring_key_manager = key_manager_builder
-                    .with_keyring_storage(
-                        KeyringStorage::new("cipher-nest", "symmetric-key").unwrap(),
-                    )
-                    .build::<Key>()
-                    .unwrap();
-            } else {
-                let symmetric_manager = key_manager_builder
-                    .with_file_storage(FileStorage::new("symmetric-key.json"))
-                    .build::<Key>()
-                    .unwrap();
-
-                let ff = KeyManagerBuilder::new();
-                let salt_manager = ff
-                    .with_file_storage(FileStorage::new("salt.json"))
-                    .build::<Salt>()
-                    .unwrap();
-
-                symmetric_manager.save(symmetric_key).unwrap();
-                salt_manager.save(salt_value).unwrap();
-                println!(
-                    "save to {}",
-                    FileStorage::get_cipher_nest_dir()
-                        .join("symmetric-key.json")
-                        .to_str()
-                        .unwrap()
-                );
-            }
+            SavePasswordCmd::new(username, http_address, password, keystore)
+                .run(db.clone())
+                .await?
         }
-        Commands::Save { password } => {}
-        Commands::Get { filter } => {
-            println!("{:?}", filter)
+        Commands::Get {
+            username,
+            http_address,
+            keystore,
+        } => {
+            GetPasswordCmd::new(username, http_address, keystore)
+                .run(db.clone())
+                .await?
         }
     }
+
+    Ok(())
 }

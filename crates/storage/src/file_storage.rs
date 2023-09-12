@@ -21,7 +21,7 @@ impl<T: Storable> Storage<T> for FileStorage {
     }
 
     fn get(&self) -> anyhow::Result<T> {
-        let data = fs::read_to_string(&self.file_path).context("Failed to read data from file")?;
+        let data = fs::read_to_string(&self.file_path).context("Symmetric key not found")?;
         T::from_str(&data, StorageFormat::FileStorage)
             .context("Failed to deserialize item from JSON")
     }

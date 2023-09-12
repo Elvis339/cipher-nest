@@ -1,9 +1,9 @@
 extern crate core;
 
 use anyhow::anyhow;
+use chacha20poly1305::aead::{Aead, Result as AeadResult};
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit};
 use chacha20poly1305::{Key as KeyChaChaPoly1305, Nonce};
-use chacha20poly1305::aead::{Aead, Result as AeadResult};
 use rand_core::OsRng;
 
 use crate::key::Key;
@@ -31,6 +31,10 @@ impl Encryption {
 
     pub fn generate_nonce() -> Nonce {
         ChaCha20Poly1305::generate_nonce(&mut OsRng)
+    }
+
+    pub fn to_nonce(nonce: Vec<u8>) -> Nonce {
+        Nonce::clone_from_slice(nonce.as_slice())
     }
 }
 

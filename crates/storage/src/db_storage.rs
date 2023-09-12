@@ -1,4 +1,4 @@
-use mongodb::{Client, Collection, options::ClientOptions};
+use mongodb::{options::ClientOptions, Client, Collection};
 
 use crate::model::password::Password;
 

@@ -82,8 +82,8 @@ mod tests {
         }
 
         fn from_file(s: &str) -> anyhow::Result<Self>
-            where
-                Self: Sized,
+        where
+            Self: Sized,
         {
             let item: Key = serde_json::from_str(s).context("failed to deserialize")?;
 
@@ -97,8 +97,8 @@ mod tests {
         }
 
         fn from_keyring_str(s: &str) -> anyhow::Result<Self>
-            where
-                Self: Sized,
+        where
+            Self: Sized,
         {
             let key = hex::decode(s).context("failed to deserialize key from keyring")?;
 
