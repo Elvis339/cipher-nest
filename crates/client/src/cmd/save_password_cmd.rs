@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use encryption::key::Key;
 use encryption::Encryption;
+use encryption::key::Key;
+use storage::ActiveRecord;
 use storage::db_storage::Database;
 use storage::file_storage::FileStorage;
 use storage::key_manager::KeyManagerBuilder;
 use storage::keyring_storage::KeyringStorage;
 use storage::model::password::Password;
-use storage::ActiveRecord;
 
 pub struct SavePasswordCmd {
     username: String,

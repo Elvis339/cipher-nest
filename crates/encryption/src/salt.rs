@@ -15,8 +15,8 @@ impl FileStorable for Salt {
     }
 
     fn from_file(s: &str) -> anyhow::Result<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         serde_json::from_str(s).context("failed to deserialize salt from file")
     }
@@ -28,8 +28,8 @@ impl KeyringStorable for Salt {
     }
 
     fn from_keyring_str(s: &str) -> anyhow::Result<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         Ok(Salt {
             inner: s.as_bytes().to_vec(),

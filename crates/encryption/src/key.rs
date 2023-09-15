@@ -19,8 +19,8 @@ impl FileStorable for Key {
     }
 
     fn from_file(s: &str) -> Result<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         let key: Key = serde_json::from_str(s)?;
         Ok(key)
@@ -33,8 +33,8 @@ impl KeyringStorable for Key {
     }
 
     fn from_keyring_str(s: &str) -> Result<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         let key = hex::decode(s).context("failed to deserialize key from keyring")?;
 
@@ -51,7 +51,7 @@ impl Key {
                 salt.as_slice(),
                 hashing_rounds,
             )
-            .to_vec(),
+                .to_vec(),
         }
     }
 

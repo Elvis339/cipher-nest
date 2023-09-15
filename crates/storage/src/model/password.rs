@@ -2,17 +2,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mongodb::bson::{doc, Bson, Document};
+use mongodb::bson::{Bson, doc};
+use mongodb::Cursor;
 use mongodb::error::Error;
 use mongodb::options::{
     FindOneOptions, FindOptions, InsertManyOptions, InsertOneOptions, UpdateOptions,
 };
-use mongodb::Cursor;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
+use crate::ActiveRecord;
 use crate::db_storage::Database;
-use crate::{ActiveRecord, FindOneBy};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Password {
@@ -22,44 +22,49 @@ pub struct Password {
     pub nonce: Vec<u8>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct PasswordFilter {
+    pub username: String,
+    pub http_address: Option<String>,
+}
+
 #[async_trait]
-impl ActiveRecord for Password {
+impl ActiveRecord<PasswordFilter> for Password {
     async fn find_one(
         db: Arc<RwLock<Database>>,
-        filter: FindOneBy,
+        filter: PasswordFilter,
         options: Option<FindOneOptions>,
     ) -> Result<Option<Self>, Error>
-    where
-        Self: Sized + Serialize + for<'de> Deserialize<'de>,
+        where
+            Self: Sized + Serialize + for<'de> Deserialize<'de>,
     {
         let read_db = db.read().await;
-        match filter {
-            FindOneBy::Username(username) => {
-                let filter_by_username = doc! { "username": username };
-                read_db
-                    .password_collection
-                    .find_one(filter_by_username, options)
-                    .await
-            }
-            FindOneBy::HttpAddress(http_address) => {
-                let filter_by_http_address = doc! { "http_address": http_address };
-                read_db
-                    .password_collection
-                    .find_one(filter_by_http_address, options)
-                    .await
-            }
-        }
+        let filter = filter
+            .http_address
+            .map(
+                |http_addr| doc! { "username": filter.username.clone(), "http_address": http_addr },
+            )
+            .unwrap_or(doc! { "username": filter.username });
+
+        read_db.password_collection.find_one(filter, options).await
     }
 
     async fn find(
         db: Arc<RwLock<Database>>,
-        filter: Document,
+        filter: PasswordFilter,
         options: Option<FindOptions>,
     ) -> Result<Cursor<Self>, Error>
-    where
-        Self: Sized + Serialize + for<'de> Deserialize<'de>,
+        where
+            Self: Sized + Serialize + for<'de> Deserialize<'de>,
     {
         let read_db = db.read().await;
+        let filter = filter
+            .http_address
+            .map(
+                |http_addr| doc! { "username": filter.username.clone(), "http_address": http_addr },
+            )
+            .unwrap_or(doc! { "username": filter.username });
+
         read_db.password_collection.find(filter, options).await
     }
 
@@ -73,8 +78,7 @@ impl ActiveRecord for Password {
         let id = write_db
             .password_collection
             .insert_one(self, options)
-            .await
-            .expect("failed to insert");
+            .await?;
 
         Ok(id.inserted_id)
     }
@@ -84,8 +88,8 @@ impl ActiveRecord for Password {
         db: Arc<RwLock<Database>>,
         options: Option<InsertManyOptions>,
     ) -> Result<HashMap<usize, Bson>, Error>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         let write_db = db.write().await;
         let id = write_db
@@ -97,27 +101,25 @@ impl ActiveRecord for Password {
         Ok(id.inserted_ids)
     }
 
-    async fn exists(db: Arc<RwLock<Database>>, filter: FindOneBy) -> Result<bool, Error>
-    where
-        Self: Sized,
+    async fn exists(db: Arc<RwLock<Database>>, filter: PasswordFilter) -> Result<bool, Error>
+        where
+            Self: Sized,
     {
-        Self::find_one(db, filter, None)
-            .await?
-            .map(|_| Ok(true))
-            .unwrap_or(Ok(false))
+        let item = Self::find_one(db, filter, None).await?;
+        return Ok(item.is_some());
     }
-
-    async fn update(
-        db: Arc<RwLock<Database>>,
-        filter: Document,
-        update: Document,
-        options: Option<UpdateOptions>,
-    ) -> Result<(), Error>
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
+    //
+    // async fn update(
+    //     db: Arc<RwLock<Database>>,
+    //     filter: Document,
+    //     update: Document,
+    //     options: Option<UpdateOptions>,
+    // ) -> Result<(), Error>
+    // where
+    //     Self: Sized,
+    // {
+    //     todo!()
+    // }
 }
 
 impl Password {

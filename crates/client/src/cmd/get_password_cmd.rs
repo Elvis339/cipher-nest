@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use tokio::sync::RwLock;
 
 use encryption::Encryption;
 use encryption::key::Key;
-use storage::{ActiveRecord, FindOneBy};
+use storage::ActiveRecord;
 use storage::db_storage::Database;
 use storage::file_storage::FileStorage;
 use storage::key_manager::KeyManagerBuilder;
 use storage::keyring_storage::KeyringStorage;
-use storage::model::password::Password;
+use storage::model::password::{Password, PasswordFilter};
 
 pub struct GetPasswordCmd {
     username: String,
@@ -28,25 +28,33 @@ impl GetPasswordCmd {
     }
 
     pub async fn run(&self, db: Arc<RwLock<Database>>) -> anyhow::Result<()> {
-        match Password::find_one(db.clone(), FindOneBy::Username(self.username.clone()), None).await? {
-            None => Err(anyhow!("{} not found", self.username)),
-            Some(password) => {
-                let symmetric_key: Key;
-                if self.keystore {
-                    symmetric_key = self.key_from_keystore()?;
-                } else {
-                    symmetric_key = self.key_from_file()?;
-                }
-                let cipher = Encryption::from(symmetric_key);
-                let decrypted = cipher.decrypt(
-                    &Encryption::to_nonce(password.nonce),
-                    password.encrypted_password,
-                ).context("Failed to decrypt the password due to the invalid symmetric key")?;
+        let password = Password::find_one(
+            db,
+            PasswordFilter {
+                username: self.username.clone(),
+                http_address: self.http_address.clone(),
+            },
+            None,
+        )
+            .await?
+            .unwrap();
 
-                info!("Password {}", decrypted);
-                Ok(())
-            }
+        let symmetric_key: Key;
+        if self.keystore {
+            symmetric_key = self.key_from_keystore()?;
+        } else {
+            symmetric_key = self.key_from_file()?;
         }
+        let cipher = Encryption::from(symmetric_key);
+        let decrypted = cipher
+            .decrypt(
+                &Encryption::to_nonce(password.nonce),
+                password.encrypted_password,
+            )
+            .context("Failed to decrypt the password due to the invalid symmetric key")?;
+
+        info!("Password {}", decrypted);
+        Ok(())
     }
 
     fn key_from_file(&self) -> anyhow::Result<Key> {

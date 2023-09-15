@@ -12,6 +12,7 @@ serde_json.workspace = true
 anyhow.workspace = true
 encryption = { path = "../encryption", version = "0.1.0" }
 types = { path = "../types", version = "0.1.0" }
+zkp = { path = "../zkp", version = "0.1.0" }
 
 async-trait = "0.1.73"
 dirs = "5.0.1"

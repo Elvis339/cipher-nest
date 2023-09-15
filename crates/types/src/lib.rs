@@ -10,26 +10,26 @@ pub enum StorageFormat {
 pub trait Storable: Serialize + DeserializeOwned {
     fn stringify(&self, format: StorageFormat) -> Result<String>;
     fn from_str(s: &str, format: StorageFormat) -> Result<Self>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 pub trait FileStorable {
     fn serialize_for_file(&self) -> Result<String>;
     fn from_file(s: &str) -> Result<Self>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 pub trait KeyringStorable {
     fn serialize_for_keyring(&self) -> Result<String>;
     fn from_keyring_str(s: &str) -> Result<Self>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 impl<T: FileStorable + KeyringStorable + serde::Serialize + for<'de> serde::Deserialize<'de>>
-    Storable for T
+Storable for T
 {
     fn stringify(&self, format: StorageFormat) -> Result<String> {
         match format {
@@ -39,8 +39,8 @@ impl<T: FileStorable + KeyringStorable + serde::Serialize + for<'de> serde::Dese
     }
 
     fn from_str(s: &str, format: StorageFormat) -> Result<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         match format {
             StorageFormat::FileStorage => Ok(Self::from_file(s).map_err(|e| anyhow!(e))?),

@@ -1,10 +1,14 @@
-use mongodb::{options::ClientOptions, Client, Collection};
+use mongodb::bson::doc;
+use mongodb::{options::ClientOptions, Client, Collection, Database as MongoDB};
 
 use crate::model::password::Password;
+use crate::model::tenant::Tenant;
 
 pub struct Database {
     client: Client,
+    db: MongoDB,
     pub password_collection: Collection<Password>,
+    pub tenant_collection: Collection<Tenant>,
 }
 
 impl Database {
@@ -15,10 +19,13 @@ impl Database {
         let client = Client::with_options(client_options)?;
         let database = client.database("cipher-nest");
 
+        let tenant_collection = database.collection::<Tenant>("tenants");
         let password_collection = database.collection::<Password>("passwords");
 
         Ok(Self {
             client,
+            db: database,
+            tenant_collection,
             password_collection,
         })
     }

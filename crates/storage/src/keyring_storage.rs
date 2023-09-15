@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Context};
 use keyring::Entry;
-use serde_json::json;
 
 use types::{Storable, StorageFormat};
 
